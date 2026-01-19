@@ -128,6 +128,6 @@ app.delete("/cards/:id", async (req, res) => {
   }
 });
 
-app.app.listen(port, () => {
+app.listen(port, () => {
   console.log("server running on the port", port);
 });
