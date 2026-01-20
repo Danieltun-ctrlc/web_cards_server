@@ -11,8 +11,10 @@ app.use(express.json());
 const allowedOrigins = [
   "http://localhost:3000",
   "http://localhost:5173",
+  "https://card-app-starter-pi.vercel.app/",
   // add your deployed frontend later
 ];
+
 
 const corsOptions = {
   origin: function (origin, callback) {
