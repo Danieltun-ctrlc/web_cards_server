@@ -107,7 +107,7 @@ app.patch("/editcard/:id", async (req, res) => {
   }
 });
 
-app.delete("/cards/:id", async (req, res) => {
+app.delete("/deletecard/:id", async (req, res) => {
   try {
     const { id } = req.params;
     let connection = await mysql.createConnection(dbConfig);
