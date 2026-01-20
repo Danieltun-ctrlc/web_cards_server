@@ -43,8 +43,6 @@ app.use(
   }),
 );
 
-app.options("*", cors());
-
 app.get("/allcards", async (req, res) => {
   try {
     let connection = await mysql.createConnection(dbConfig);
