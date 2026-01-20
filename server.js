@@ -1,29 +1,17 @@
 import express from "express";
 import mysql from "mysql2/promise";
 import cors from "cors";
-
 import dotenv from "dotenv";
-let port = 3000;
-dotenv.config();
 
-const dbConfig = {
-  host: process.env.DB_HOST,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME,
-  port: process.env.DB_PORT,
-  waitForConnections: true,
-  connectionLimit: 100,
-  queueLimit: 0,
-};
+dotenv.config();
 
 const app = express();
 app.use(express.json());
 
 const allowedOrigins = [
   "http://localhost:3000",
-  // "https://YOUR-frontend.vercel.app",
-  // "https://YOUR-frontend.onrender.com"
+  "http://localhost:5173",
+  // add your deployed frontend later
 ];
 
 const corsOptions = {
@@ -40,11 +28,26 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.options("*", cors(corsOptions));
 
+const dbConfig = {
+  host: process.env.DB_HOST,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME,
+  port: Number(process.env.DB_PORT),
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0,
+};
+
+app.get("/", (req, res) => {
+  res.json({ status: "ok" });
+});
 
 app.get("/allcards", async (req, res) => {
   try {
-    let connection = await mysql.createConnection(dbConfig);
-    let [rows] = await connection.execute("SELECT * FROM defaultdb.cardsC");
+    const connection = await mysql.createConnection(dbConfig);
+    const [rows] = await connection.execute("SELECT * FROM defaultdb.cardsC");
+    await connection.end();
     res.json(rows);
   } catch (err) {
     console.error(err);
@@ -55,12 +58,15 @@ app.get("/allcards", async (req, res) => {
 app.post("/addcard", async (req, res) => {
   try {
     const { card_name, card_img } = req.body;
-    let connection = await mysql.createConnection(dbConfig);
+
+    const connection = await mysql.createConnection(dbConfig);
     await connection.execute(
       "INSERT INTO defaultdb.cardsC (card_name, card_URL) VALUES (?, ?)",
       [card_name, card_img],
     );
-    res.status(201).json({ message: "card" + card_name + "added" });
+    await connection.end();
+
+    res.status(201).json({ message: "Card added successfully" });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "adding unsuccessful" });
@@ -78,21 +84,24 @@ app.patch("/editcard/:id", async (req, res) => {
         .json({ error: "card_name and card_img are required" });
     }
 
-    let connection = await mysql.createConnection(dbConfig);
+    const connection = await mysql.createConnection(dbConfig);
 
-    let [rows] = await connection.execute(
+    const [rows] = await connection.execute(
       "SELECT * FROM defaultdb.cardsC WHERE card_ID = ?",
       [id],
     );
 
     if (rows.length === 0) {
+      await connection.end();
       return res.status(404).json({ error: "Card not found" });
     }
 
-    let [result] = await connection.execute(
+    const [result] = await connection.execute(
       "UPDATE defaultdb.cardsC SET card_name = ?, card_URL = ? WHERE card_ID = ?",
       [card_name, card_img, id],
     );
+
+    await connection.end();
 
     if (result.affectedRows === 0) {
       return res.status(404).json({ error: "Card not found" });
@@ -108,12 +117,13 @@ app.patch("/editcard/:id", async (req, res) => {
 app.delete("/deletecard/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    let connection = await mysql.createConnection(dbConfig);
 
-    let [result] = await connection.execute(
+    const connection = await mysql.createConnection(dbConfig);
+    const [result] = await connection.execute(
       "DELETE FROM defaultdb.cardsC WHERE card_ID = ?",
       [id],
     );
+    await connection.end();
 
     if (result.affectedRows === 0) {
       return res.status(404).json({ error: "Card not found" });
@@ -126,6 +136,7 @@ app.delete("/deletecard/:id", async (req, res) => {
   }
 });
 
+const port = process.env.PORT || 3000;
 app.listen(port, () => {
-  console.log("server running on the port", port);
+  console.log("server running on port", port);
 });
