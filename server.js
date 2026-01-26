@@ -47,7 +47,7 @@ const DEMO_USER = {
   password: "admin123"
 }
 
-import jwt from "jsonwebtoken";
+const jwt = require("jsonwebtoken");
 const JWT_SECRET = process.env.JWT_SECRET;
 
 app.post("/login", async (req, res) => {
