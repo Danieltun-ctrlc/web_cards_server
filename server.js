@@ -9,13 +9,22 @@ dotenv.config();
 const app = express();
 app.use(express.json());
 
-app.use(
-  cors({
-    origin: "*",
-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-  }),
-);
+const allowedOrigins = [
+  "http://localhost:3000",
+  "http://localhost:5173",
+  // add your deployed frontend later
+];
+
+const corsOptions = {
+  origin: function (origin, callback) {
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    return callback(new Error("Not allowed by CORS"));
+  },
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  credentials: false,
+};
 
 const pool = mysql.createPool({
   host: process.env.DB_HOST,
@@ -26,30 +35,7 @@ const pool = mysql.createPool({
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,
-});
-
-const DEMO_USER = {
-  id: 1,
-  username: "admin",
-  password: "admin123",
 };
-
-const JWT_SECRET = process.env.JWT_SECRET;
-
-app.post("/login", async (req, res) => {
-  const { username, password } = req.body;
-
-  if (username !== DEMO_USER.username || password !== DEMO_USER.password) {
-    return res.status(401).json({ message: "Invalid credentials" });
-  }
-
-  const token = jwt.sign(
-    { id: DEMO_USER.id, username: DEMO_USER.username },
-    JWT_SECRET,
-    { expiresIn: "1h" },
-  );
-  res.json({ token });
-});
 
 app.get("/", (req, res) => {
   res.json({ status: "ok" });
