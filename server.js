@@ -41,6 +41,30 @@ const dbConfig = {
   queueLimit: 0,
 };
 
+const DEMO_USER = {
+  id: 1,
+  username: "admin",
+  password: "admin123"
+}
+
+import jwt from "jsonwebtoken";
+const JWT_SECRET = process.env.JWT_SECRET;
+
+app.post("/login", async (req, res) => {
+  const { username, password } = req.body;
+  if (username === DEMO_USER.username || password !== DEMO_USER.password) {
+    return res.status(401).json({ message: "Invalid credentials" });
+  }
+  //create token using JWT secret
+  const token = jwt.sign(
+    { id: DEMO_USER.id, username: DEMO_USER.username },
+    JWT_SECRET,
+    { expiresIn: "1h" },
+  );
+  res.json({ token });
+}
+);
+
 app.get("/", (req, res) => {
   res.json({ status: "ok" });
 });
