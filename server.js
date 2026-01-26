@@ -2,33 +2,22 @@ import express from "express";
 import mysql from "mysql2/promise";
 import cors from "cors";
 import dotenv from "dotenv";
+import jwt from "jsonwebtoken";
 
 dotenv.config();
 
 const app = express();
 app.use(express.json());
 
-const allowedOrigins = [
-  "http://localhost:3000",
-  "http://localhost:5173",
-  // add your deployed frontend later
-];
+app.use(
+  cors({
+    origin: "*",
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  }),
+);
 
-const corsOptions = {
-  origin: function (origin, callback) {
-    if (!origin) return callback(null, true);
-    if (allowedOrigins.includes(origin)) return callback(null, true);
-    return callback(new Error("Not allowed by CORS"));
-  },
-  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
-  credentials: false,
-};
-
-app.use(cors(corsOptions));
-app.options(/.*/, cors(corsOptions));
-
-const dbConfig = {
+const pool = mysql.createPool({
   host: process.env.DB_HOST,
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
@@ -37,7 +26,30 @@ const dbConfig = {
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,
+});
+
+const DEMO_USER = {
+  id: 1,
+  username: "admin",
+  password: "admin123",
 };
+
+const JWT_SECRET = process.env.JWT_SECRET;
+
+app.post("/login", async (req, res) => {
+  const { username, password } = req.body;
+
+  if (username !== DEMO_USER.username || password !== DEMO_USER.password) {
+    return res.status(401).json({ message: "Invalid credentials" });
+  }
+
+  const token = jwt.sign(
+    { id: DEMO_USER.id, username: DEMO_USER.username },
+    JWT_SECRET,
+    { expiresIn: "1h" },
+  );
+  res.json({ token });
+});
 
 app.get("/", (req, res) => {
   res.json({ status: "ok" });
@@ -45,13 +57,11 @@ app.get("/", (req, res) => {
 
 app.get("/allcards", async (req, res) => {
   try {
-    const connection = await mysql.createConnection(dbConfig);
-    const [rows] = await connection.execute("SELECT * FROM defaultdb.cardsC");
-    await connection.end();
+    const [rows] = await pool.execute("SELECT * FROM cardsC");
     res.json(rows);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: "errors getting all the scams data" });
+    res.status(500).json({ message: "errors getting all the cards data" });
   }
 });
 
@@ -59,12 +69,10 @@ app.post("/addcard", async (req, res) => {
   try {
     const { card_name, card_img } = req.body;
 
-    const connection = await mysql.createConnection(dbConfig);
-    await connection.execute(
-      "INSERT INTO defaultdb.cardsC (card_name, card_URL) VALUES (?, ?)",
+    const [result] = await pool.execute(
+      "INSERT INTO cardsC (card_name, card_URL) VALUES (?, ?)",
       [card_name, card_img],
     );
-    await connection.end();
 
     res.status(201).json({ message: "Card added successfully" });
   } catch (err) {
@@ -84,24 +92,10 @@ app.patch("/editcard/:id", async (req, res) => {
         .json({ error: "card_name and card_img are required" });
     }
 
-    const connection = await mysql.createConnection(dbConfig);
-
-    const [rows] = await connection.execute(
-      "SELECT * FROM defaultdb.cardsC WHERE card_ID = ?",
-      [id],
-    );
-
-    if (rows.length === 0) {
-      await connection.end();
-      return res.status(404).json({ error: "Card not found" });
-    }
-
-    const [result] = await connection.execute(
-      "UPDATE defaultdb.cardsC SET card_name = ?, card_URL = ? WHERE card_ID = ?",
+    const [result] = await pool.execute(
+      "UPDATE cardsC SET card_name = ?, card_URL = ? WHERE card_ID = ?",
       [card_name, card_img, id],
     );
-
-    await connection.end();
 
     if (result.affectedRows === 0) {
       return res.status(404).json({ error: "Card not found" });
@@ -118,12 +112,10 @@ app.delete("/deletecard/:id", async (req, res) => {
   try {
     const { id } = req.params;
 
-    const connection = await mysql.createConnection(dbConfig);
-    const [result] = await connection.execute(
-      "DELETE FROM defaultdb.cardsC WHERE card_ID = ?",
+    const [result] = await pool.execute(
+      "DELETE FROM cardsC WHERE card_ID = ?",
       [id],
     );
-    await connection.end();
 
     if (result.affectedRows === 0) {
       return res.status(404).json({ error: "Card not found" });
