@@ -52,6 +52,7 @@ const JWT_SECRET = process.env.JWT_SECRET;
 
 app.post("/login", async (req, res) => {
   const { username, password } = req.body;
+  console.log("Received credentials:", { username, password });
   if (username !== DEMO_USER.username || password !== DEMO_USER.password) {
     return res.status(401).json({ message: "Invalid credentials" });
   }
